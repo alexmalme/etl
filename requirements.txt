@@ -1,1 +1,6 @@
 prefect >= 0.14.19
+pandas
+numpy
+sqlite3
+fuzzywuzzy
+json

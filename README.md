@@ -10,6 +10,9 @@
 <br>
 
 ## __Bibliotecas & Dependências__
+
+### __Instalação usando conda:__
+
 Prefect:
 ```
 conda install -c conda-forge prefect
@@ -37,6 +40,8 @@ Fuzzywuzzy:
 ```
  conda install -c conda-forge fuzzywuzzy 
  ```
+  
+
 
 <br>
 
