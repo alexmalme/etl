@@ -12,7 +12,7 @@ Programa criado como teste para a Wiretrack
 from prefect import task, Flow, Parameter
 from prefect.schedules import IntervalSchedule
 
-import sqlite3
+import sqlite3 as sq
 import pandas as pd
 import json
 import datetime as dt
@@ -89,6 +89,11 @@ def read_user_inputs(file: str):
     js = json.loads(fi)
     return js
 
+# %%
+@task
+def date_parser(dates: str) -> str:
+    d = parser.parse(dates).strftime("%d/%m/%Y %H:%M:%S")
+    return d
 # Definir os intervalos entre execuções
 schedule = IntervalSchedule(
     start_date=dt.datetime.utcnow() + dt.timedelta(seconds=1),
@@ -127,26 +132,6 @@ with Flow("Wiretrack Desafio", schedule=schedule) as flow:
     )
     connection = connector()
     curs = connection.cursor()
-    # nome das tabelas e tipos para o banco de dados
-    columns = {
-    
-        "AnuncioEnderecoCep": "text",
-        "FreeformAddress": "text",
-        "StreetNumber": "text",
-        "StreetName": "text",
-        "MunicipalitySubdivision": "text",
-        "Municipality": "text",
-        "CountrySecondarySubdivision": "text",
-        "CountrySubdivision": "text",
-        "Country": "text",
-        "CountryCode": "text",
-        "CountryCodeISO3": "text",
-        "PostalCode": "text",
-        "Lat": "text",
-        "Lon": "text",
-        "Score": "text",
-        "Type": "text"
-    }
     ct = create_tables(curs, table_name='todos', kwargs=columns)
     # %%
     df = pandas_read(
