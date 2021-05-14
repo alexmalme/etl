@@ -10,7 +10,6 @@ Programa criado como teste para a Wiretrack
 """
 #%%
 from fuzzywuzzy import fuzz, process
-import numpy as np
 import json
 
 # %%
