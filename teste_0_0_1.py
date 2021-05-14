@@ -82,7 +82,6 @@ def write_data_w_pandas(
 # %%
 # Ler os inputs dos usuários
 # Configurei como se tivessem sido salvos num arquivo json
-@task
 def read_user_inputs(file: str):
     with open(file, 'r+') as f:
         fi = f.read()
@@ -90,35 +89,27 @@ def read_user_inputs(file: str):
     return js
 
 # %%
-@task
 def date_parser(dates: str) -> str:
     d = parser.parse(dates).strftime("%d/%m/%Y %H:%M:%S")
     return d
 
-@task
 # %%
-def AcertaBairros(entrada: str) -> str:
+def AcertaBairros(entrada: str) -> tuple:
     """
     Função para encontrar nome de bairro mais próximo ao input.
     """
     with open('sources/bairros_rio_de_janeiro.txt', 'r+') as brj:
         brj = brj.read()
     dict_rio = json.loads(brj)
-    all_neighboors = set(
-            logradouro for lista in dict_rio.values() for logradouro in lista
-        )
-    neighboors_to_search = str(entrada).strip().lower()
-    for item in all_neighboors:
-        str_similarity = fuzz.partial_ratio(neighboors_to_search.lower(), item.lower())
-        if str_similarity > 97:
-            return_fuzzy = str(item)
-        else:
-            return_0 = process.extractOne(entrada, all_neighboors)
-            return_fuzzy = return_0[0]
-    return return_fuzzy.title()
+    all_neighborhoods = set(
+        logradouro for lista in dict_rio.values() for logradouro in lista
+    )
+    neighborhood_to_search = str(entrada).strip().lower()
+    best = process.extractOne(neighborhood_to_search, all_neighborhoods)
+    return best if best[1] >= 95 else (None, None)
+    
 
 # %%
-@task
 def AcertaRuas(entrada: str) -> str:
     """
     Função para encontrar logradouro mais similar ao input
@@ -128,14 +119,10 @@ def AcertaRuas(entrada: str) -> str:
         rs = ruas.read()
     r = set(rs.replace('\n', '').strip().lower().split(','))
     streets_to_search = str(entrada).strip().lower()
-    return_0 = process.extractOne(streets_to_search, r)
-    if return_0[1] >= 95:
-        return return_0[0].title()
-    else:
-        return f"Pontuação inferior a 95%, não encontrei resultado próximo"
+    best = process.extractOne(streets_to_search, r)
+    return best if best[1] >= 92 else (None, None)
 
 # %%
-@task
 def fix_user_input(form, name, d_time, input_string: str) -> tuple:
     f, n, d, i = name, d_time, input_string
     if form == 'forms_bairros':
@@ -159,22 +146,31 @@ schedule = IntervalSchedule(
 # Definir Prefect Flow
 with Flow("Wiretrack Desafio", schedule=schedule) as flow:
     columns_A = {
-            "AnuncioEnderecoCep": "text",
-            "FreeformAddress": "text",
-            "StreetNumber": "text",
-            "StreetName": "text",
-            "MunicipalitySubdivision": "text",
-            "Municipality": "text",
-            "CountrySecondarySubdivision": "text",
-            "CountrySubdivision": "text",
-            "Country": "text",
-            "CountryCode": "text",
-            "CountryCodeISO3": "text",
-            "PostalCode": "text",
-            "Lat": "text",
-            "Lon": "text",
-            "Score": "text",
-            "Type": "text"
+        "AnuncioEnderecoCep": "text",
+        "FreeformAddress": "text",
+        "StreetNumber": "text",
+        "StreetName": "text",
+        "MunicipalitySubdivision": "text",
+        "Municipality": "text",
+        "CountrySecondarySubdivision": "text",
+        "CountrySubdivision": "text",
+        "Country": "text",
+        "CountryCode": "text",
+        "CountryCodeISO3": "text",
+        "PostalCode": "text",
+        "Lat": "text",
+        "Lon": "text",
+        "Score": "text",
+        "Type": "text",
+    }
+    columns_B = {
+        "FormularioJson": "text",
+        "Nome": "text",
+        "Data": "text",
+        "EntradaUsuario": "text",
+        "RespostaSistema": "text",
+        "Taxa": "integer",
+        "Formulario": "text",
     }
     ind = Parameter("index", default=False)
     ind_col = Parameter("index_col", default=0)
@@ -186,7 +182,7 @@ with Flow("Wiretrack Desafio", schedule=schedule) as flow:
         "inputs_usuarios_bairros",
         default="sources/inputs_usuarios_bairros.json",
     )
-    ct = create_tables(
+    create_tables(
         database_path='db/logradouros.db',
         table_name='todos',
         colunas=columns_A,
@@ -203,6 +199,11 @@ with Flow("Wiretrack Desafio", schedule=schedule) as flow:
     )
     # %%
     # Criar a tabela B
-    
+    create_tables(
+        database_path='db/entradas_usuarios.db',
+        table_name='todos',
+        colunas=columns_B,
+    )
+    df = pan
     
 flow.run(delimiter=";")
