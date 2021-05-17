@@ -24,6 +24,7 @@ from dateutil import parser
 
 
 #%%
+# script para criar o banco de dados
 create_db_logradouros = SQLiteScript(
     name="db_logradouros",
     db="/home/alx_malme/GitHub/wiretrack_test/db/logradouros.db",
@@ -46,7 +47,7 @@ create_db_logradouros = SQLiteScript(
         Type text)''',
     tags=["db"],
 )
-
+# script para criar o banco de dados
 create_db_entrada_usuarios = SQLiteScript(
     name="db_entradas_usuarios",
     db="/home/alx_malme/GitHub/wiretrack_test/db/entradas_usuarios.db",
@@ -60,7 +61,9 @@ create_db_entrada_usuarios = SQLiteScript(
         Formulario text)''',
     tags=["db"],
 )
-
+# script usado para inserir as informações nos bancos dados
+# Deve ser chamado de forma recorrente, pois insere um dado de cada vez
+# otimizado para o banco de dados "A", que é o banco de dados com as informações dos logradouros do Brasil
 ins_a = SQLiteScript(
     name="db_logradouros",
     db="/home/alx_malme/GitHub/wiretrack_test/db/logradouros.db",
@@ -83,6 +86,9 @@ ins_a = SQLiteScript(
     tags=["db"],
 )
 #%%
+# script usado para inserir as informações nos bancos dados
+# Deve ser chamado de forma recorrente, pois insere um dado de cada vez
+# otimizado para o banco de dados "B", que é o banco de dados com as os inputs dos usuários, o que eles inseriram e o que o programa retornou
 ins_b = SQLiteScript(
     name="db_entradas_usuarios",
     db="/home/alx_malme/GitHub/wiretrack_test/db/entradas_usuarios.db",
@@ -104,12 +110,31 @@ def pandas_read_csv(
     index_col=None,
     delimiter=';',
 ):
+    """Cria um DataFrame para ler o arquivo em CSV e retorna uma lista de listas com os valores das colunas. Não retorna os nomes das colunas e nem o index
+
+    Args:
+        file (str, optional): [arquivo csv]. Defaults to '/home/alx_malme/GitHub/wiretrack_test/sources/cep_logradouro_rio_de_janeiro.csv'.
+        index_col ([type], optional): [index]. Defaults to None.
+        delimiter (str, optional): [separador do arquivo CSV]. Defaults to ';'.
+
+    Returns:
+        [str: list]: [lista contendo listas]
+    """
     df = pd.read_csv(file, delimiter=delimiter, index_col=index_col)
     df = df.iloc[:200, :]
     return df.values.tolist()
 
 @task
 def create_insert_script_db_a(dados, tabela, colunas):
+    """
+    Args:
+        dados (list): dados para serem inseridos no banco de dados
+        tabela (str): Nome da tabela no banco
+        colunas (list): nome das colunas do banco
+        
+    Returns:
+        final (str): string pronta para ser passada para o "script" de "INSERT" do SQL
+    """    
     col = ", ".join(colunas)
     (
         AnuncioEnderecoCep,
@@ -136,6 +161,15 @@ def create_insert_script_db_a(dados, tabela, colunas):
 
 @task
 def create_insert_script_db_b(dados, tabela, colunas):
+    """
+    Args:
+        dados (list): dados para serem inseridos no banco de dados
+        tabela (str): Nome da tabela no banco
+        colunas (list): nome das colunas do banco
+
+    Returns:
+        final (str): string pronta para ser passada para o "script" de "INSERT" do SQL
+    """
     col = ", ".join(colunas)
     (
         FormularioJson,
@@ -156,6 +190,14 @@ def create_insert_script_db_b(dados, tabela, colunas):
 def read_user_inputs(
     location="/home/alx_malme/GitHub/wiretrack_test/sources/inputs_usuarios_bairros.json",
 ):
+    """Lê o arquivo com os inputs dos usuários
+    PrefectResult é usado para ler arquivos json
+    Args:
+        location (str, optional): [endereço do arquivo]. Defaults to "/home/alx_malme/GitHub/wiretrack_test/sources/inputs_usuarios_bairros.json".
+
+    Returns:
+        [result.value: dict]: retorna um dicionário
+    """
     with open(location, "r+") as fil:
         f = fil.read()
     presult = PrefectResult()
@@ -284,7 +326,8 @@ with Flow(
         default="sources/cep_logradouro_rio_de_janeiro.csv",
     )
 # %%
-
+    # criar as listas com os logradouros
+    # neste teste limitei aos 200 primeiros
     list_logradouros = pandas_read_csv(
         file='/home/alx_malme/GitHub/wiretrack_test/sources/cep_logradouro_rio_de_janeiro.csv',
         index_col=None,
@@ -309,24 +352,34 @@ with Flow(
         "Score",
         "Type",
     ]
+    # função para criar o banco de dados vazio
+    # banco de dados que eu consideirei como A para o teste pedido
+    # banco de dados dos logradouros
     db_logradouros = create_db_logradouros()
+    # Essa chamada para a função cria o arquivo de insert
+    # Precisa ser chamada com map pois o for não funciona no corpo do flow
+    # o unmapped serve para manter as varíaveis estáticas, enquanto os dados são iterados
     create_inserter_a = create_insert_script_db_a.map(
         colunas=unmapped(colunas_A),
         tabela=unmapped("todos"),
         dados=list_logradouros,
     )
+    # chamada para a função que vai inserir dos dados no banco de dados
     save_inputs_a = ins_a.map(
         script=create_inserter_a,
         upstream_tasks=[unmapped(db_logradouros)],
     )
     # %%
     # Criar a tabela B
-    #db_entradas_usuarios = create_db_entrada_usuarios()
+    # extrair os dados do arquivo json
     read_user_inputs_bairros = read_user_inputs(
         "/home/alx_malme/GitHub/wiretrack_test/sources/inputs_usuarios_bairros.json"
     )
-    
+    # aqui os dados serão manipulados, será verificada a similaridade do que os usuários
+    # inseriram e a resposta do sistema
+    # é a principal função de tratamento dos dados
     extract = user_input_extract(read_user_inputs_bairros)
+    # função para criar o banco de dados vazio
     db = create_db_entrada_usuarios()
     colunas_B = [
         "FormularioJson",
@@ -337,17 +390,17 @@ with Flow(
         "Taxa",
         "Formulario",
     ]
-    # teste = create_insert_script(
-        # colunas=colunas_B, tabela="todos", dados=extract[0],
-    # )
-    # ins(script=teste)
+    # Essa chamada para a função cria o arquivo de insert
+    # Precisa ser chamada com map pois o for não funciona no corpo do flow
+    # o unmapped serve para manter as varíaveis estáticas, enquanto os dados são iterados
     teste = create_insert_script_db_b.map(
         colunas=unmapped(colunas_B), tabela=unmapped("todos"), dados=extract
     )
+    # chamada para a função que vai inserir dos dados no banco de dados
     final = ins_b.map(script=teste, upstream_tasks=[unmapped(db)])
 
 
 # %%
-# flow.register(project_name='Wiretrack Apresentação')
-flow.visualize()
-# flow.run()
+#flow.register(project_name='Wiretrack Apresentação')
+# flow.visualize()
+flow.run()
