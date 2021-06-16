@@ -10,6 +10,10 @@ Programa criado como teste para a Wiretrack
 """
 
 #%%
+
+
+#%%
+# script para criar o banco de dados
 from prefect.run_configs import LocalRun
 from prefect.engine.results.local_result import LocalResult
 from prefect.engine.results.prefect_result import PrefectResult
@@ -21,10 +25,6 @@ import pandas as pd
 import json
 import datetime as dt
 from dateutil import parser
-
-
-#%%
-# script para criar o banco de dados
 create_db_logradouros = SQLiteScript(
     name="db_logradouros",
     db="/home/alx_malme/GitHub/wiretrack_test/db/logradouros.db",
@@ -124,6 +124,7 @@ def pandas_read_csv(
     df = df.iloc[:200, :]
     return df.values.tolist()
 
+
 @task
 def create_insert_script_db_a(dados, tabela, colunas):
     """
@@ -134,7 +135,7 @@ def create_insert_script_db_a(dados, tabela, colunas):
         
     Returns:
         final (str): string pronta para ser passada para o "script" de "INSERT" do SQL
-    """    
+    """
     col = ", ".join(colunas)
     (
         AnuncioEnderecoCep,
@@ -153,11 +154,12 @@ def create_insert_script_db_a(dados, tabela, colunas):
         Lon,
         Score,
         Type,
-    )= dados
+    ) = dados
     final = f"""INSERT INTO todos ({col}) VALUES ("{AnuncioEnderecoCep}", "{FreeformAddress}", "{StreetNumber
         }", "{StreetName}", "{MunicipalitySubdivision}", "{Municipality}", "{CountrySecondarySubdivision}", "{CountrySubdivision}", "{Country}", "{CountryCode}", "{CountryCodeISO3
         }", "{PostalCode}", "{Lat}", "{Lon}", "{Score}", "{Type}");"""
     return final
+
 
 @task
 def create_insert_script_db_b(dados, tabela, colunas):
@@ -205,6 +207,8 @@ def read_user_inputs(
     return result.value
 
 # %%
+
+
 @task
 def user_input_extract(user_inputs):
     """
@@ -231,7 +235,7 @@ def user_input_extract(user_inputs):
                     input_usuario = it.get('neighborhood')
                     dict_inputs['EntradaUsuario'] = input_usuario
                     with open('/home/alx_malme/GitHub/wiretrack_test/sources/bairros_rio_de_janeiro.txt', 'r+'
-                    ) as brj:
+                              ) as brj:
                         brj = brj.read()
                     dict_rio = json.loads(brj)
                     all_neighborhoods = set(
@@ -272,6 +276,7 @@ def user_input_extract(user_inputs):
                     dict_inputs['Formulario'] = "Rua"
                 list_inputs.append(dict_inputs)
     return list_inputs
+
 
 # %%
 schedule = IntervalSchedule(
@@ -333,7 +338,7 @@ with Flow(
         index_col=None,
         delimiter=';',
     )
-    
+
     colunas_A = [
         "AnuncioEnderecoCep",
         "FreeformAddress",
@@ -401,6 +406,6 @@ with Flow(
 
 
 # %%
-#flow.register(project_name='Wiretrack Apresentação')
-# flow.visualize()
-flow.run()
+flow.register(project_name='Wiretrack Apresentação')
+#flow.visualize()
+#flow.run()
