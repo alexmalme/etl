@@ -10,6 +10,13 @@ Programa criado como teste para a Wiretrack
 """
 
 #%%
+<<<<<<< HEAD
+=======
+
+
+#%%
+# script para criar o banco de dados
+>>>>>>> 3d6626db963484a237db6ab2e8b58d10a3841b46
 from prefect.run_configs import LocalRun
 from prefect.engine.results.local_result import LocalResult
 from prefect.engine.results.prefect_result import PrefectResult
@@ -21,9 +28,12 @@ import pandas as pd
 import json
 import datetime as dt
 from dateutil import parser
+<<<<<<< HEAD
 
 
 #%%
+=======
+>>>>>>> 3d6626db963484a237db6ab2e8b58d10a3841b46
 create_db_logradouros = SQLiteScript(
     name="db_logradouros",
     db="/home/alx_malme/GitHub/wiretrack_test/db/logradouros.db",
@@ -46,7 +56,11 @@ create_db_logradouros = SQLiteScript(
         Type text)''',
     tags=["db"],
 )
+<<<<<<< HEAD
 
+=======
+# script para criar o banco de dados
+>>>>>>> 3d6626db963484a237db6ab2e8b58d10a3841b46
 create_db_entrada_usuarios = SQLiteScript(
     name="db_entradas_usuarios",
     db="/home/alx_malme/GitHub/wiretrack_test/db/entradas_usuarios.db",
@@ -60,7 +74,13 @@ create_db_entrada_usuarios = SQLiteScript(
         Formulario text)''',
     tags=["db"],
 )
+<<<<<<< HEAD
 
+=======
+# script usado para inserir as informações nos bancos dados
+# Deve ser chamado de forma recorrente, pois insere um dado de cada vez
+# otimizado para o banco de dados "A", que é o banco de dados com as informações dos logradouros do Brasil
+>>>>>>> 3d6626db963484a237db6ab2e8b58d10a3841b46
 ins_a = SQLiteScript(
     name="db_logradouros",
     db="/home/alx_malme/GitHub/wiretrack_test/db/logradouros.db",
@@ -83,6 +103,12 @@ ins_a = SQLiteScript(
     tags=["db"],
 )
 #%%
+<<<<<<< HEAD
+=======
+# script usado para inserir as informações nos bancos dados
+# Deve ser chamado de forma recorrente, pois insere um dado de cada vez
+# otimizado para o banco de dados "B", que é o banco de dados com as os inputs dos usuários, o que eles inseriram e o que o programa retornou
+>>>>>>> 3d6626db963484a237db6ab2e8b58d10a3841b46
 ins_b = SQLiteScript(
     name="db_entradas_usuarios",
     db="/home/alx_malme/GitHub/wiretrack_test/db/entradas_usuarios.db",
@@ -104,12 +130,40 @@ def pandas_read_csv(
     index_col=None,
     delimiter=';',
 ):
+<<<<<<< HEAD
+=======
+    """Cria um DataFrame para ler o arquivo em CSV e retorna uma lista de listas com os valores das colunas. Não retorna os nomes das colunas e nem o index
+
+    Args:
+        file (str, optional): [arquivo csv]. Defaults to '/home/alx_malme/GitHub/wiretrack_test/sources/cep_logradouro_rio_de_janeiro.csv'.
+        index_col ([type], optional): [index]. Defaults to None.
+        delimiter (str, optional): [separador do arquivo CSV]. Defaults to ';'.
+
+    Returns:
+        [str: list]: [lista contendo listas]
+    """
+>>>>>>> 3d6626db963484a237db6ab2e8b58d10a3841b46
     df = pd.read_csv(file, delimiter=delimiter, index_col=index_col)
     df = df.iloc[:200, :]
     return df.values.tolist()
 
+<<<<<<< HEAD
 @task
 def create_insert_script_db_a(dados, tabela, colunas):
+=======
+
+@task
+def create_insert_script_db_a(dados, tabela, colunas):
+    """
+    Args:
+        dados (list): dados para serem inseridos no banco de dados
+        tabela (str): Nome da tabela no banco
+        colunas (list): nome das colunas do banco
+        
+    Returns:
+        final (str): string pronta para ser passada para o "script" de "INSERT" do SQL
+    """
+>>>>>>> 3d6626db963484a237db6ab2e8b58d10a3841b46
     col = ", ".join(colunas)
     (
         AnuncioEnderecoCep,
@@ -128,14 +182,33 @@ def create_insert_script_db_a(dados, tabela, colunas):
         Lon,
         Score,
         Type,
+<<<<<<< HEAD
     )= dados
+=======
+    ) = dados
+>>>>>>> 3d6626db963484a237db6ab2e8b58d10a3841b46
     final = f"""INSERT INTO todos ({col}) VALUES ("{AnuncioEnderecoCep}", "{FreeformAddress}", "{StreetNumber
         }", "{StreetName}", "{MunicipalitySubdivision}", "{Municipality}", "{CountrySecondarySubdivision}", "{CountrySubdivision}", "{Country}", "{CountryCode}", "{CountryCodeISO3
         }", "{PostalCode}", "{Lat}", "{Lon}", "{Score}", "{Type}");"""
     return final
 
+<<<<<<< HEAD
 @task
 def create_insert_script_db_b(dados, tabela, colunas):
+=======
+
+@task
+def create_insert_script_db_b(dados, tabela, colunas):
+    """
+    Args:
+        dados (list): dados para serem inseridos no banco de dados
+        tabela (str): Nome da tabela no banco
+        colunas (list): nome das colunas do banco
+
+    Returns:
+        final (str): string pronta para ser passada para o "script" de "INSERT" do SQL
+    """
+>>>>>>> 3d6626db963484a237db6ab2e8b58d10a3841b46
     col = ", ".join(colunas)
     (
         FormularioJson,
@@ -156,6 +229,17 @@ def create_insert_script_db_b(dados, tabela, colunas):
 def read_user_inputs(
     location="/home/alx_malme/GitHub/wiretrack_test/sources/inputs_usuarios_bairros.json",
 ):
+<<<<<<< HEAD
+=======
+    """Lê o arquivo com os inputs dos usuários
+    PrefectResult é usado para ler arquivos json
+    Args:
+        location (str, optional): [endereço do arquivo]. Defaults to "/home/alx_malme/GitHub/wiretrack_test/sources/inputs_usuarios_bairros.json".
+
+    Returns:
+        [result.value: dict]: retorna um dicionário
+    """
+>>>>>>> 3d6626db963484a237db6ab2e8b58d10a3841b46
     with open(location, "r+") as fil:
         f = fil.read()
     presult = PrefectResult()
@@ -163,6 +247,11 @@ def read_user_inputs(
     return result.value
 
 # %%
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> 3d6626db963484a237db6ab2e8b58d10a3841b46
 @task
 def user_input_extract(user_inputs):
     """
@@ -189,7 +278,11 @@ def user_input_extract(user_inputs):
                     input_usuario = it.get('neighborhood')
                     dict_inputs['EntradaUsuario'] = input_usuario
                     with open('/home/alx_malme/GitHub/wiretrack_test/sources/bairros_rio_de_janeiro.txt', 'r+'
+<<<<<<< HEAD
                     ) as brj:
+=======
+                              ) as brj:
+>>>>>>> 3d6626db963484a237db6ab2e8b58d10a3841b46
                         brj = brj.read()
                     dict_rio = json.loads(brj)
                     all_neighborhoods = set(
@@ -231,6 +324,10 @@ def user_input_extract(user_inputs):
                 list_inputs.append(dict_inputs)
     return list_inputs
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 3d6626db963484a237db6ab2e8b58d10a3841b46
 # %%
 schedule = IntervalSchedule(
     start_date=dt.datetime.utcnow() + dt.timedelta(seconds=1),
@@ -284,13 +381,22 @@ with Flow(
         default="sources/cep_logradouro_rio_de_janeiro.csv",
     )
 # %%
+<<<<<<< HEAD
 
+=======
+    # criar as listas com os logradouros
+    # neste teste limitei aos 200 primeiros
+>>>>>>> 3d6626db963484a237db6ab2e8b58d10a3841b46
     list_logradouros = pandas_read_csv(
         file='/home/alx_malme/GitHub/wiretrack_test/sources/cep_logradouro_rio_de_janeiro.csv',
         index_col=None,
         delimiter=';',
     )
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> 3d6626db963484a237db6ab2e8b58d10a3841b46
     colunas_A = [
         "AnuncioEnderecoCep",
         "FreeformAddress",
@@ -309,24 +415,50 @@ with Flow(
         "Score",
         "Type",
     ]
+<<<<<<< HEAD
     db_logradouros = create_db_logradouros()
+=======
+    # função para criar o banco de dados vazio
+    # banco de dados que eu consideirei como A para o teste pedido
+    # banco de dados dos logradouros
+    db_logradouros = create_db_logradouros()
+    # Essa chamada para a função cria o arquivo de insert
+    # Precisa ser chamada com map pois o for não funciona no corpo do flow
+    # o unmapped serve para manter as varíaveis estáticas, enquanto os dados são iterados
+>>>>>>> 3d6626db963484a237db6ab2e8b58d10a3841b46
     create_inserter_a = create_insert_script_db_a.map(
         colunas=unmapped(colunas_A),
         tabela=unmapped("todos"),
         dados=list_logradouros,
     )
+<<<<<<< HEAD
+=======
+    # chamada para a função que vai inserir dos dados no banco de dados
+>>>>>>> 3d6626db963484a237db6ab2e8b58d10a3841b46
     save_inputs_a = ins_a.map(
         script=create_inserter_a,
         upstream_tasks=[unmapped(db_logradouros)],
     )
     # %%
     # Criar a tabela B
+<<<<<<< HEAD
     #db_entradas_usuarios = create_db_entrada_usuarios()
     read_user_inputs_bairros = read_user_inputs(
         "/home/alx_malme/GitHub/wiretrack_test/sources/inputs_usuarios_bairros.json"
     )
     
     extract = user_input_extract(read_user_inputs_bairros)
+=======
+    # extrair os dados do arquivo json
+    read_user_inputs_bairros = read_user_inputs(
+        "/home/alx_malme/GitHub/wiretrack_test/sources/inputs_usuarios_bairros.json"
+    )
+    # aqui os dados serão manipulados, será verificada a similaridade do que os usuários
+    # inseriram e a resposta do sistema
+    # é a principal função de tratamento dos dados
+    extract = user_input_extract(read_user_inputs_bairros)
+    # função para criar o banco de dados vazio
+>>>>>>> 3d6626db963484a237db6ab2e8b58d10a3841b46
     db = create_db_entrada_usuarios()
     colunas_B = [
         "FormularioJson",
@@ -337,6 +469,7 @@ with Flow(
         "Taxa",
         "Formulario",
     ]
+<<<<<<< HEAD
     # teste = create_insert_script(
         # colunas=colunas_B, tabela="todos", dados=extract[0],
     # )
@@ -344,10 +477,25 @@ with Flow(
     teste = create_insert_script_db_b.map(
         colunas=unmapped(colunas_B), tabela=unmapped("todos"), dados=extract
     )
+=======
+    # Essa chamada para a função cria o arquivo de insert
+    # Precisa ser chamada com map pois o for não funciona no corpo do flow
+    # o unmapped serve para manter as varíaveis estáticas, enquanto os dados são iterados
+    teste = create_insert_script_db_b.map(
+        colunas=unmapped(colunas_B), tabela=unmapped("todos"), dados=extract
+    )
+    # chamada para a função que vai inserir dos dados no banco de dados
+>>>>>>> 3d6626db963484a237db6ab2e8b58d10a3841b46
     final = ins_b.map(script=teste, upstream_tasks=[unmapped(db)])
 
 
 # %%
+<<<<<<< HEAD
 # flow.register(project_name='Wiretrack Apresentação')
 flow.visualize()
 # flow.run()
+=======
+flow.register(project_name='Wiretrack Apresentação')
+#flow.visualize()
+#flow.run()
+>>>>>>> 3d6626db963484a237db6ab2e8b58d10a3841b46
