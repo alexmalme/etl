@@ -8,10 +8,14 @@ created on 13/05/2021
 """
 Programa criado como teste para a Wiretrack
 """
-
+from prefect.run_configs import LocalRun
 from prefect import task, Flow, Parameter
 from prefect.schedules import IntervalSchedule
 from fuzzywuzzy import fuzz, process
+from prefect.tasks.database import SQLiteScript
+
+import typing
+from typing import Tuple, Any
 
 import sqlite3 as sq
 import pandas as pd
@@ -53,6 +57,12 @@ def pandas_read_csv(
     df = pd.read_csv(file, delimiter=delimiter, index_col=index_col)
     return df
 
+@task
+def create_dataframe(
+    data, index=None, columns=None, dtype=None,
+):
+    return pd.DataFrame(data, index, columns, dtype)
+
 # %%
 @task
 def write_data_w_pandas(
@@ -75,77 +85,6 @@ def read_user_inputs(file: str) -> dict:
         fi = f.read()
     js = json.loads(fi)
     return js
-
-# %%
-@task
-def AcertaBairros(entrada: str) -> dict:
-    """
-    Função para encontrar nome de bairro mais próximo ao input.
-    """
-    with open('sources/bairros_rio_de_janeiro.txt', 'r+') as brj:
-        brj = brj.read()
-    dict_rio = json.loads(brj)
-    all_neighborhoods = set(
-        logradouro for lista in dict_rio.values() for logradouro in lista
-    )
-    neighborhood_to_search = str(entrada).strip().lower()
-    best = process.extractOne(neighborhood_to_search, all_neighborhoods)
-    return (
-        {"RespostaSistema": best[0], "Taxa": best[1]}
-        if best[1] >= 95
-        else {"RespostaSistema": None, "Taxa": None}
-    )
-    
-
-# %%
-@task
-def AcertaRuas(entrada: str) -> dict:
-    """
-    Função para encontrar logradouro mais similar ao input
-    Retorna logradouro apenas para resultados >= a 95%
-    """
-    with open('sources/ruas_brasil.txt', 'r+') as ruas:
-        rs = ruas.read()
-    r = set(rs.replace('\n', '').strip().lower().split(','))
-    streets_to_search = str(entrada).strip().lower()
-    best = process.extractOne(streets_to_search, r)
-    return (
-        {"RespostaSistema": best[0], "Taxa": best[1]}
-        if best[1] >= 92
-        else {"RespostaSistema": None, "Taxa": None}
-    )
-
-# %%
-def fix_user_input(form: str, input_string: str) -> dict:
-    dict_return = {}
-    i, i_resp, taxa, formulario = input_string, None, None
-    if form == 'forms_bairros':
-        dict_resposta = AcertaBairros(entrada=i)
-        dict_return['Formulario'] = "Bairro"
-        dict_return['RespostaSistema'] = dict_resposta['RespostaSistema']
-        dict_return['Taxa'] = dict_resposta['Taxa']
-    elif form == 'forms_ruas':
-        dict_resposta = AcertaRuas(entrada=i)
-        dict_return['Formulario'] = "Rua"
-        dict_return['RespostaSistema'] = dict_resposta['RespostaSistema']
-        dict_return['Taxa'] = dict_resposta['Taxa']        
-    return dict_return
-
-@task
-def user_transform(x: dict):    
-    form = x.get("FormularioJson")
-    input_string = x.get("EntradaUsuario")
-    formulario_resposta_taxa = fix_user_input(form, input_string)
-    x.update(
-        {
-            'Formulario': formulario_resposta_taxa["Formulario"],
-            "RespostaSistema": formulario_resposta_taxa[
-                "RespostaSistema"
-            ],
-            "Taxa": formulario_resposta_taxa['Taxa'],
-        }
-    )
-    return x
     
 @task
 def user_input_extract(user_inputs: dict) -> list:
@@ -159,23 +98,61 @@ def user_input_extract(user_inputs: dict) -> list:
     """
     list_inputs = []
     if user_inputs.keys():
-        dict_inputs = {}
-        form = [*user_inputs.keys()][0]
-        for item in form:
-            it = user_inputs.get(form)[item]
-            dict_inputs['FormularioJSon'] = form
-            dict_inputs['Nome'] = it.get('user')
-            d_ = it.get('datetime')
-            dict_inputs['Data'] = parser.parse(d_).strftime("%d/%m/%Y %H:%M:%S")
-            if form == 'forms_bairros':
-                dict_inputs['EntradaUsuario'] = it.get('neighborhood')
-            elif form == 'forms_ruas':
-                dict_inputs['EntradaUsuario'] = it.get('street')
-            list_inputs.append(dict_inputs)
+        forms = [*user_inputs.keys()]
+        for form in forms:
+            for index, item in enumerate(user_inputs.get(form)):
+                dict_inputs = {}
+                it = user_inputs.get(form)[index]
+                dict_inputs['FormularioJSon'] = form
+                dict_inputs['Nome'] = it.get('user')
+                d_ = it.get('datetime')
+                dict_inputs['Data'] = parser.parse(d_).strftime("%d/%m/%Y %H:%M:%S")
+                if form == 'forms_bairros':
+                    input_usuario = it.get('neighborhood')
+                    dict_inputs['EntradaUsuario'] = input_usuario
+                    with open(
+                        'sources/bairros_rio_de_janeiro.txt', 'r+'
+                    ) as brj:
+                        brj = brj.read()
+                    dict_rio = json.loads(brj)
+                    all_neighborhoods = set(
+                        logradouro.lower().strip()
+                        for lista in dict_rio.values()
+                        for logradouro in lista
+                    )
+                    neighborhood_to_search = str(input_usuario
+                                                 ).strip().lower()
+                    best = process.extractOne(
+                        neighborhood_to_search,
+                        all_neighborhoods,
+                        score_cutoff=90,
+                    )
+                    if best:
+                        dict_inputs['RespostaSistema'] = best[0].title()
+                        dict_inputs['Taxa'] = best[1]
+                    else:
+                        dict_inputs['RespostaSistema'] = None
+                        dict_inputs['Taxa'] = None
+                    dict_inputs['Formulario'] = "Bairro"
+                elif form == 'forms_ruas':
+                    input_usuario = it.get('street')
+                    dict_inputs['EntradaUsuario'] = input_usuario                    
+                    with open('sources/ruas_brasil.txt', 'r+') as ruas:
+                        rs = ruas.read()
+                    r = set(rs.replace('\n', '').strip().lower().split(','))
+                    streets_to_search = str(input_usuario).strip().lower()
+                    best = process.extractOne(
+                        streets_to_search, r, score_cutoff=90
+                    )
+                    if best:
+                        dict_inputs['RespostaSistema'] = best[0].title()
+                        dict_inputs['Taxa'] = best[1]
+                    else:
+                        dict_inputs['RespostaSistema'] = None
+                        dict_inputs['Taxa'] = None
+                    dict_inputs['Formulario'] = "Rua"
+                list_inputs.append(dict_inputs)
     return list_inputs
-
-@task            
-def user_transform():
     
 
 
@@ -186,7 +163,9 @@ schedule = IntervalSchedule(
 )
 
 # Definir Prefect Flow
-with Flow("Wiretrack Desafio", schedule=schedule) as flow:
+with Flow(
+    "Wiretrack Apresentação", run_config=LocalRun(), schedule=schedule
+) as flow:
     columns_A = {
         "AnuncioEnderecoCep": "text",
         "FreeformAddress": "text",
@@ -212,7 +191,7 @@ with Flow("Wiretrack Desafio", schedule=schedule) as flow:
         "Data": "text",
         "EntradaUsuario": "text",
         "RespostaSistema": "text",
-        "Taxa": "integer",
+        "Taxa": "text",
         "Formulario": "text",
     }
     ind = Parameter("index", default=False)
@@ -235,14 +214,14 @@ with Flow("Wiretrack Desafio", schedule=schedule) as flow:
         colunas=columns_A,
     )
     # %%
-    df = pandas_read_csv(
-        file= file_logradouros_csv,
-        index_col=ind_col,
-        delimiter=delim,
+    df = pd.read_csv(
+        "sources/cep_logradouro_rio_de_janeiro.csv",
+        index_col=0,
+        delimiter=";",
     )
     # %%
     write_data_w_pandas(
-        df, 'db/logradouros.db', 'todos', if_exists='replace', index="False"
+        df, 'db/logradouros.db', 'todos', if_exists='replace', index=False
     )
     # %%
     # Criar a tabela B
@@ -251,11 +230,18 @@ with Flow("Wiretrack Desafio", schedule=schedule) as flow:
         table_name='todos',
         colunas=columns_B,
     )
-    read_user_inputs_streets = file_input_usuarios_bairros
-    extract = user_input_extract(read_user_inputs_streets)
-    transformed = []
-    for x in item:
-        transformed.append(user_transform(x))
+    read_user_inputs_bairros = read_user_inputs(file_input_usuarios_bairros)
+    extract = user_input_extract(read_user_inputs_bairros)
+    # df = pd.DataFrame(extract)
+    df_ = create_dataframe(data=extract,)
+    write_data_w_pandas(
+        df_,
+        'db/entradas_usuarios.db',
+        'todos',
+        if_exists='append',
+        index=False,
+    )
     
-flow.run(delimiter=";")
-print(transformed)
+
+flow.register(project_name='Wiretrack')
+# flow.run()
